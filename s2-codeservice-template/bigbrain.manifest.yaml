@@ -1,0 +1,108 @@
+version: "1.0.0"
+
+global:
+  secrets:
+    - my-password-secret-name-1
+    - my-password-secret-name-2
+    - my-password-secret-name-3
+  vars:
+    - globalvar1: value-global-1
+    - globalvar2: value-global-2
+
+resources:
+    - resource:
+        name: resource-1
+        type: workspacegroup
+        config:
+          name: workspacegroup-1
+          cloudprovider: aws
+          region: us-east-1
+          version: production
+          operator:
+            version: custom
+            image: gcr.io/singlestore-public/internal-memsql-operator:<image-tag>
+
+    - resource:
+          name: resource-2
+          type: workspacegroup
+          config:
+            name: workspacegroup-2
+            cloudprovider: gcp
+            region: us-east-2
+            version: production
+            operator:
+              version: default
+
+    - resource:
+          name: resource-3
+          type: workspace
+          requires:
+            - resource-1
+          config:
+            name: workspace-1
+            workspacegroup: workspacegroup-1
+            size: S00
+            kai: false
+            deployment: production
+            autoscale: true
+            autosuspend:
+              type: idle
+              time: 20 # in minutes
+
+    - resource:
+            name: resource-4
+            type: database
+            requires:
+              - resource-3
+            config:
+              workspacegroup: workspacegroup-1
+              workspacename: workspace-1
+              dbName: my_db_1
+              dbUser: admin
+              dbPasswordSecretName: my-password-secret-name-1
+              dbPort: 3306
+              sql: github.com/USER/REPO/path/to/sql
+
+    - resource:
+              name: resource-5
+              type: job
+              requires:
+                - resource-3
+              config:
+                name: setup
+                description: This is setup job. One time only.
+                image: gcr.io/singlestore-private/bigbrain-setup:latest
+              vars:
+                - localvar1: value-1
+                - localvar2: value-2
+
+    - resource:
+              name: resource-6
+              type: job
+              requires:
+                - resource-4
+                - resource-5
+              config:
+                name: scheduler
+                image: gcr.io/singlestore-private/bigbrain-scheduler:latest
+                cron: "0 * * * *"
+              vars:
+                - localvar1: value-3
+                - localvar2: value-4
+
+    - resource:
+                name: resource-7
+                type: codeservice
+                requires:
+                  - resource-6
+                config:
+                  name: bigbrain-codeservice
+                  description: This is codeservice.
+                  image: gcr.io/singlestore-private/bigbrain-codeservice:latest
+                vars:
+                  - localvar1: value-5
+                  - localvar2: value-6
+            
+
+      
+    
